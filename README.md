@@ -1,124 +1,223 @@
 <p align="center">
-  <a href="https://github.com/czantoine/smap-grafana-dashboard/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
-  <a href="https://www.linkedin.com/in/antoine-cichowicz-837575b1"><img alt="Linkedin" src="https://img.shields.io/badge/-Antoine-blue?style=flat-square&logo=Linkedin&logoColor=white"></a>
-  <a href="https://github.com/czantoine/smap-grafana-dashboard"><img alt="Issues" src="https://img.shields.io/github/issues/czantoine/smap-grafana-dashboard"></a>
-  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/czantoine/smap-grafana-dashboard">
-  <a href="https://github.com/czantoine/smap-grafana-dashboard"><img alt="Stars" src="https://img.shields.io/github/stars/czantoine/smap-grafana-dashboard"></a>
+  <a href="https://github.com/czantoine/smap-ai-recon-center/blob/main/LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg">
+  </a>
+  <a href="https://github.com/czantoine/smap-ai-recon-center">
+    <img alt="Stars" src="https://img.shields.io/github/stars/czantoine/smap-ai-recon-center">
+  </a>
+  <a href="https://github.com/czantoine/smap-ai-recon-center/issues">
+    <img alt="Issues" src="https://img.shields.io/github/issues/czantoine/smap-ai-recon-center">
+  </a>
+  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/czantoine/smap-ai-recon-center">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-Local%20LLM-111111">
+  <img alt="AI" src="https://img.shields.io/badge/AI-Assisted%20Threat%20Analysis-8A2BE2">
+  <a href="https://www.linkedin.com/in/antoine-cichowicz-837575b1">
+    <img alt="LinkedIn" src="https://img.shields.io/badge/-Antoine-blue?style=flat-square&logo=Linkedin&logoColor=white">
+  </a>
 </p>
 
+<h1 align="center">Smap AI Recon Center</h1>
 
-# Smap Network Scanner – Nmap Alternative with Shodan.io
+<p align="center">
+  AI-powered passive network reconnaissance and threat intelligence platform built on Smap, SQLite, Grafana, and Ollama.
+</p>
 
-<a href="https://grafana.com/dashboards/24085">
-  <img src="https://grafana-dashboard-badge.netlify.app/.netlify/functions/api/badge?id_dashboard=24085&logo=true" alt="Grafana Dashboard Badge">
-</a>
+<p align="center">
+  <a href="https://grafana.com/dashboards/24085">
+    <img src="https://grafana-dashboard-badge.netlify.app/.netlify/functions/api/badge?id_dashboard=24085&logo=true" alt="Grafana Dashboard Badge">
+  </a>
+</p>
 
-## Project Overview
+---
 
-This project provides a complete **passive network reconnaissance and threat intelligence pipeline** using [**Smap**](https://github.com/s0md3v/Smap) (a passive Nmap alternative leveraging the Shodan.io InternetDB API), a Python-based multi-format importer, a local SQLite database, and a Grafana dashboard.
+## Overview
 
-The importer (`import_smap.py`) goes far beyond simple JSON-to-SQL conversion — it parses **CVSS scores**, classifies **severity levels**, extracts **technology stacks** from CPE strings, generates **host tags**, computes **per-host risk levels**, extracts **SSL/TLS certificate details**, and supports **geo-enrichment** (country, city, ASN, org). Scan-over-scan diffing enables tracking of new targets, disappeared hosts, new threats, and resolved CVEs.
+**Smap AI Recon Center** is a lightweight, containerized platform for **passive attack surface visibility**, **threat intelligence exploration**, and **AI-assisted risk analysis**.
 
-The Grafana dashboard [(ID: **24085**)](https://grafana.com/grafana/dashboards/24085) renders **30+ panels** across 4 sections with **4 interactive filter variables** (Target IP, Port, Severity, Tag).
+It combines:
+
+- [**Smap**](https://github.com/s0md3v/Smap), a passive Nmap alternative built on **Shodan InternetDB**
+- a Python-based **SQLite importer and enrichment pipeline**
+- a **Grafana dashboard** for visualization and operational analysis
+- an optional **local AI analysis layer** powered by **Ollama**
+
+The platform transforms passive reconnaissance output into a structured security dataset enriched with:
+
+- **CVSS scoring**
+- **severity classification**
+- **per-host risk scoring**
+- **CPE-based technology fingerprinting**
+- **host auto-tagging**
+- **SSL/TLS metadata extraction**
+- **geo-enrichment**
+- **scan-over-scan drift detection**
+- **AI-generated executive summaries and host-level threat assessments**
+
+The result is a compact yet powerful recon and intelligence stack suitable for:
+
+- security monitoring
+- exposure review
+- asset visibility
+- lightweight SOC workflows
+- red team reconnaissance tracking
+- education, labs, and demonstrations
 
 ![grafana_dashboard_smap](docs/images/smap-dashboard.png)
 
-> **Ready to run?** Jump to the [Quickstart guide](quickstart/README.md).
+> To deploy the full stack locally, see the [Quickstart guide](quickstart/README.md).
+
+---
+
+## Key Capabilities
+
+### Passive Reconnaissance & Enrichment
+
+- Passive host and service discovery using **Shodan InternetDB**
+- Import pipeline for **JSON, JSONL, XML, and nmap-style outputs**
+- **CVSS normalization** and severity mapping
+- **Per-host risk computation**
+- **Technology extraction** from CPE strings
+- **Automatic host tagging**
+- **Geo and ASN enrichment**
+- **SSL/TLS metadata extraction**
+- Duplicate prevention and additive schema migration
+
+### AI-Assisted Threat Analysis
+
+- Fully local **LLM-based analysis** via **Ollama**
+- **Per-host AI risk assessment**
+- **Scan-level executive summaries**
+- **Structured recommendations and remediation hints**
+- AI output stored directly in **SQLite**
+- No dependency on external AI SaaS platforms
+
+### Visualization & Operations
+
+- Grafana dashboard [(ID: **24085**)](https://grafana.com/grafana/dashboards/24085)
+- Threat-centric and asset-centric views
+- Operational history and drift tracking
+- Filterable tables and interactive visualizations
+- AI-focused dashboard section layered on top of the existing recon workflow
 
 ---
 
 ## Architecture
 
+```text
+        ┌────────────┐
+        │ targets.txt│
+        └─────┬──────┘
+              │
+              ▼
+   ┌──────────────────────────────┐
+   │        smap-importer         │
+   │------------------------------│
+   │ passive recon via Smap       │
+   │ CVSS + severity scoring      │
+   │ CPE tech fingerprinting      │
+   │ host auto-tagging            │
+   │ SSL/TLS extraction           │
+   │ geo enrichment               │
+   │ writes smap.db               │
+   └──────────────┬───────────────┘
+                  │
+                  ▼
+          ┌────────────────┐
+          │    SQLite DB   │
+          │    smap.db     │
+          └──────┬─────────┘
+                 │
+      ┌──────────┴──────────┐
+      ▼                     ▼
+┌───────────────┐    ┌────────────────┐
+│    Grafana    │    │  AI Analyzer   │
+│---------------│    │----------------│
+│ dashboard     │    │ Ollama-powered │
+│ threat views  │    │ host analysis  │
+│ asset views   │    │ scan summaries │
+└───────────────┘    └────────────────┘
 ```
-        ┌────────────┐     ┌────────────────────────────-──┐     ┌───────────────────-──────┐
-        │            │     │   smap-importer               │     │   grafana                │
-        │ targets.txt├────►│                               │     │                          │
-        │            │     │  entrypoint.sh                │     │  frser-sqlite-datasource │
-        └────────────┘     │  ├─ pre-flight (Shodan test)  │     │         │                │
-                           │  ├─ smap -iL targets -oJ      │     │         ▼                │
-                           │  └─ import_smap.py            │     │  ┌──────────────────┐    │
-                           │     ├─ CVSS scoring           │     │  │  Dashboard       │    │
-                           │     ├─ CPE → technologies     │     │  │  ID: 24085       │    │
-                           │     ├─ Auto-tagging           │     │  │  30+ panels      │    │
-                           │     ├─ SSL/TLS extraction     │     │  │  4 filters       │    │
-                           │     ├─ Risk-level computation │     │  └──────────────────┘    │
-                           │     └─► smap.db ◄─────────────┼─────┤     (shared volume)      │
-                           └───────────────────────────────┘     └─-────────────────────────┘
-```
-
-**Data flow:**
-1. **Smap** queries the [Shodan InternetDB](https://internetdb.shodan.io/) (free, no API key) for each target and outputs JSON.
-2. **`import_smap.py`** parses the output (auto-detecting format), computes CVSS severity and risk levels, parses CPE strings into technologies, generates host tags, and writes everything into `smap.db`.
-3. **Grafana** reads `smap.db` through the [frser-sqlite-datasource](https://github.com/fr-ser/grafana-sqlite-datasource) plugin, provisioned automatically.
-4. The **dashboard** [(ID: 24085)](https://grafana.com/grafana/dashboards/24085) provides full visibility across 4 interactive filter variables and 30+ panels.
 
 ---
 
-## Features
+## Data Flow
 
-### Import Pipeline (`import_smap.py`)
+1. **Smap** queries **Shodan InternetDB** for passive intelligence on each target.
+2. **`import_smap.py`** parses and enriches the results, then writes them into **`smap.db`**.
+3. **Grafana** reads SQLite through the `frser-sqlite-datasource` plugin and renders the dashboard.
+4. The optional **AI analyzer** reads the same database, sends contextual host and scan data to **Ollama**, and stores the results back into SQLite.
+5. The dashboard exposes both **raw passive recon intelligence** and **AI-generated contextual analysis**.
 
-| Capability | Description |
+---
+
+## Technology Stack
+
+| Component | Role |
 |---|---|
-| **Multi-format parsing** | JSON arrays, JSONL, nmap XML (`-oX`), nmap-json wrappers, Shodan JSON |
-| **CVSS severity scoring** | Auto-classifies each CVE: CRITICAL (≥9.0), HIGH (≥7.0), MEDIUM (≥4.0), LOW (≥0.1), NONE |
-| **Per-host risk level** | Computes `max_cvss` and `risk_level` for every host |
-| **Technology fingerprinting** | Parses CPE strings into `technologies` table (category: application/os/hardware) |
-| **Auto-tagging** | Generates tags from Shodan data, OS, detected services, vulnerability status |
-| **SSL/TLS extraction** | Certificate subject, issuer, expiry, cipher suite, TLS version |
-| **Geo-enrichment** | Country, country code, city, latitude/longitude, organization, ASN, ISP |
-| **Product & version** | Extracts software product and version from service fingerprints |
-| **Schema migration** | Automatic column additions — safe to run on existing databases |
-| **Duplicate prevention** | Deduplicates hosts and CVEs within the same scan |
-
-### Grafana Dashboard [(ID: 24085)](https://grafana.com/grafana/dashboards/24085)
-
-| Capability | Description |
-|---|---|
-| **30+ panels** | Stats, bar charts, pie charts, donut charts, filterable tables |
-| **4 filter variables** | Target IP, Port, Severity, Tag — all panels react in real-time |
-| **Severity color coding** | CRITICAL=red, HIGH=pink, MEDIUM=magenta, LOW=cyan, UNKNOWN=dark |
-| **NVD deep-links** | Click any CVE to open its NIST NVD detail page |
-| **Scan-over-scan diffing** | New targets, gone dark, new threats, resolved CVEs, CVE delta |
-| **Technology stack view** | Bar chart of technologies by host count (from CPE parsing) |
-| **Host tags visualization** | Bar chart of source:tag distribution |
-| **Risk level distribution** | Donut chart of hosts by computed risk level |
-| **Auto-provisioned** | Datasource + dashboard loaded automatically — zero manual config |
+| **Smap** | Passive host, service, and vulnerability enumeration |
+| **Python** | Import, enrichment, schema migration, AI orchestration |
+| **SQLite** | Lightweight single-file datastore |
+| **Grafana** | Dashboarding and operational visibility |
+| **Ollama** | Local LLM runtime for AI analysis |
+| **Docker Compose** | Reproducible deployment |
 
 ---
 
 ## Database Schema
 
-The importer creates and maintains **7 tables** with **14 indexes**:
+The platform uses a single SQLite database: **`smap.db`**.
 
+### Core tables
+
+```text
+scans
+hosts
+ports
+vulnerabilities
+technologies
+host_tags
 ```
-smap.db
-├── scans (1 row/import)        — scan_time, total_hosts, total_ports, total_vulns
-├── hosts (1 row/IP)            — ip, hostname, os, geo, org, asn, vuln_count, max_cvss, risk_level
-├── ports (N rows/host)         — port, protocol, service, product, version, banner, cpe, ssl_*
-├── vulnerabilities (N rows)    — cve, cvss, severity, summary, references_json, verified
-├── technologies (N rows)       — category, name, version, cpe (parsed from CPE strings)
-├── host_tags (N rows)          — tag, source (shodan / os / service / status)
-└── sqlite_sequence             — auto-increment tracking
+
+### AI tables
+
+```text
+ai_scan_analysis
+ai_host_analysis
 ```
+
+> The AI layer is strictly **additive**. It does not alter or break the existing importer schema.
 
 <details>
-<summary><b>Full column reference (click to expand)</b></summary>
+<summary><b>Core schema reference</b></summary>
 
-| Table | Columns |
+| Table | Main purpose |
 |---|---|
-| **scans** | `id`, `scan_time`, `scanner_version`, `raw_file`, `total_hosts`, `total_ports`, `total_vulns`, `notes` |
-| **hosts** | `id`, `scan_id`, `ip`, `hostname`, `status`, `os`, `ttl`, `country`, `country_code`, `city`, `latitude`, `longitude`, `org`, `asn`, `isp`, `vuln_count`, `max_cvss`, `risk_level`, `raw` |
-| **ports** | `id`, `host_id`, `port`, `protocol`, `service`, `product`, `version`, `state`, `banner`, `cpe`, `ssl_cert_subject`, `ssl_cert_issuer`, `ssl_cert_expires`, `ssl_version`, `ssl_cipher`, `raw` |
-| **vulnerabilities** | `id`, `scan_id`, `host_id`, `port_id`, `cve`, `cvss`, `severity`, `summary`, `references_json`, `verified`, `note`, `raw` |
-| **technologies** | `id`, `host_id`, `port_id`, `category`, `name`, `version`, `cpe` |
-| **host_tags** | `id`, `host_id`, `tag`, `source` |
+| **scans** | Stores one row per scan/import |
+| **hosts** | Stores enriched host-level intelligence |
+| **ports** | Stores open ports and service metadata |
+| **vulnerabilities** | Stores CVEs, CVSS, severity, and references |
+| **technologies** | Stores parsed CPE-based technologies |
+| **host_tags** | Stores generated host tags and their source |
+
+</details>
+
+<details>
+<summary><b>AI schema reference</b></summary>
+
+| Table | Main purpose |
+|---|---|
+| **ai_scan_analysis** | Executive AI scan summary and recommendations |
+| **ai_host_analysis** | Per-host AI assessment with score and actions |
 
 </details>
 
 ---
 
-## Dashboard Sections
+## Dashboard Coverage
+
+The Grafana dashboard includes sections for:
 
 ### ⟩⟩⟩ SYSTEM STATUS
 > Real-time KPIs for the current scan state.
@@ -138,6 +237,23 @@ smap.db
 | AVG P/H | Average open ports per host |
 
 ![grafana_dashboard_smap-system_status](docs/images/smap-system-status.png)
+
+### ⟩⟩⟩ AI THREAT ANALYSIS
+> AI-assisted risk interpretation, host prioritization, and executive threat summarization powered by Ollama.
+
+| Panel | Description |
+|---|---|
+| AI RISK LEVEL | AI-assessed overall risk level for the latest analyzed scan |
+| HOSTS ANALYZED | Number of hosts processed by the AI engine |
+| AI HIGH+CRIT | Hosts classified by AI as HIGH or CRITICAL |
+| AVG AI SCORE | Average AI-computed risk score across analyzed hosts |
+| AI MODEL | LLM model used for the most recent analysis |
+| LAST AI RUN | Timestamp of the most recent AI analysis execution |
+| AI EXECUTIVE SUMMARY | Scan-level AI summary with contextual recommendations |
+| AI RISK DISTRIBUTION | Donut chart of hosts by AI-generated risk level |
+| AI vs STATIC RISK | Comparison between importer risk classification and AI interpretation |
+| AI HOST THREAT INDEX | Ranked table of hosts with AI risk level, score, summary, and recommended actions |
+| AI ASSESSMENT HISTORY | Historical table of AI scan summaries, model used, risk level, and recommendations |
 
 ### ⟩⟩⟩ THREAT MATRIX
 > Vulnerability analysis and risk prioritization.
@@ -187,41 +303,72 @@ smap.db
 
 ---
 
-## Why This Approach
+You can access the public dashboard page here:
 
-| Choice | Rationale |
-|---|---|
-| **Shodan InternetDB** | Passive, fast, no API key required, ~200 hosts/second |
-| **SQLite** | Zero-dependency, single-file database, perfect for lightweight stacks |
-| **Python importer** | Full control over parsing, scoring, enrichment — no external services |
-| **Grafana + SQLite plugin** | Immediate, shareable visualizations with zero backend infrastructure |
-| **Docker Compose** | Reproducible, one-command deployment |
+- [Grafana Dashboard 24085](https://grafana.com/grafana/dashboards/24085)
 
-This stack is designed for **monitoring, light SOC workflows, red team recon tracking, and educational purposes**.
+Dashboard ID: **24085**
 
 ---
 
-## Smap
+## Why This Design
 
-Smap project: [https://github.com/s0md3v/Smap](https://github.com/s0md3v/Smap) — see repository for additional information.
+| Design choice | Reason |
+|---|---|
+| **Passive recon** | No direct interaction with targets |
+| **SQLite** | Simple, portable, efficient for lightweight deployments |
+| **Grafana** | Mature and flexible visualization layer |
+| **Ollama** | Local AI inference with strong privacy and portability |
+| **Docker Compose** | Fast setup and reproducibility |
+
+This architecture is intentionally optimized for **small-to-medium deployments**, **portable demos**, **labs**, and **rapid operational visibility**.
+
+---
+
+## Quickstart
+
+```bash
+git clone https://github.com/czantoine/smap-ai-recon-center
+cd smap-ai-recon-center/quickstart
+docker compose up -d --build
+```
+
+Then open Grafana at:
+
+- `http://localhost:3009`
+
+For the complete deployment guide, see [quickstart/README.md](quickstart/README.md).
+
+---
+
+## About Smap
+
+Smap project: [https://github.com/s0md3v/Smap](https://github.com/s0md3v/Smap)
 
 | Feature | Detail |
 |---|---|
-| **Speed** | ~200 hosts per second |
-| **Authentication** | No API key required (uses free Shodan InternetDB endpoint) |
-| **Vulnerability detection** | CVE enumeration from service fingerprints |
-| **Output formats** | XML (`-oX`), JSON (`-oJ`), greppable (`-oG`), nmap default (`-oN`), all (`-oA`) |
-| **Fingerprinting** | Service and version identification via Shodan data |
-| **Stealth** | Zero contact with targets — fully passive reconnaissance |
+| **Approach** | Passive reconnaissance via Shodan InternetDB |
+| **Speed** | Fast enumeration without active probing |
+| **Authentication** | No API key required |
+| **Output formats** | JSON, XML, greppable, normal, all |
+| **Use case** | Passive asset and exposure discovery |
 
 ---
 
-You can directly find the [dashboard here](https://grafana.com/grafana/dashboards/24085) or use the ID: **24085**.
+## Contributing
+
+Contributions are welcome, including:
+
+- bug fixes
+- documentation improvements
+- parser enhancements
+- Grafana dashboard improvements
+- AI prompt and analysis improvements
+
+If this project is useful to you, consider giving it a star ⭐
 
 ---
-
-If you find this project useful, please give it a star ⭐️ ! Your support is greatly appreciated. Also, feel free to contribute to this project. All contributions, whether bug fixes, improvements, or new features, are welcome!
 
 ## Stargazers over time
 
-[![Stargazers over time](https://starchart.cc/czantoine/smap-grafana-dashboard.svg?variant=adaptive)](https://starchart.cc/czantoine/smap-grafana-dashboard)
+[![Stargazers over time](https://starchart.cc/czantoine/smap-ai-recon-center.svg?variant=adaptive)](https://starchart.cc/czantoine/smap-ai-recon-center)
