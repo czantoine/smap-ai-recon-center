@@ -57,6 +57,8 @@ Open Grafana after ~30–60s:
 
 The dashboard and datasource are **auto-provisioned** — nothing to configure manually.
 
+The dashboard JSON is downloaded from grafana.com when the Grafana container starts.
+
 ---
 
 ## Targets

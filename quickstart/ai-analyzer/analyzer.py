@@ -25,6 +25,9 @@ OLLAMA_HOST   = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL  = os.getenv("OLLAMA_MODEL", "phi3:mini")
 SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL", "500"))
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "600"))
+OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "3"))
+OLLAMA_RETRY_DELAY = float(os.getenv("OLLAMA_RETRY_DELAY", "2.0"))
+MAX_SCAN_CONTEXT_CHARS = int(os.getenv("MAX_SCAN_CONTEXT_CHARS", "16000"))
 MAX_HOST_PORTS = int(os.getenv("MAX_HOST_PORTS", "40"))
 MAX_HOST_VULNS = int(os.getenv("MAX_HOST_VULNS", "20"))
 MAX_SCAN_TOP_HOSTS = int(os.getenv("MAX_SCAN_TOP_HOSTS", "15"))
@@ -393,22 +396,127 @@ def extract_json_object(text: str) -> Dict[str, Any]:
     return {}
 
 
-def call_ollama(prompt: str) -> Tuple[str, int]:
+def call_ollama(prompt: str, use_json_format: bool = True) -> Tuple[str, int]:
     payload = {
         "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False,
-        "format": "json",
         "options": {
             "temperature": 0.2,
             "top_p": 0.9,
         }
     }
+    if use_json_format:
+        payload["format"] = "json"
+
     t0 = time.time()
     r = requests.post(f"{OLLAMA_HOST}/api/generate", json=payload, timeout=OLLAMA_TIMEOUT)
     r.raise_for_status()
     duration_ms = int((time.time() - t0) * 1000)
     return r.json().get("response", ""), duration_ms
+
+
+def call_ollama_resilient(prompt: str) -> Tuple[str, int]:
+    """
+    Resilient call strategy:
+    1) Try strict JSON mode first.
+    2) On failure, retry without explicit format to bypass some Ollama 500 cases.
+    3) Retry a few times with backoff.
+    """
+    last_error: Optional[Exception] = None
+    modes = [True, False]
+
+    for attempt in range(1, OLLAMA_RETRIES + 1):
+        for use_json in modes:
+            try:
+                return call_ollama(prompt, use_json_format=use_json)
+            except Exception as e:
+                last_error = e
+                mode_label = "json-format" if use_json else "plain-format"
+                print(f"  [WARN] Ollama attempt {attempt}/{OLLAMA_RETRIES} failed ({mode_label}): {e}")
+
+        if attempt < OLLAMA_RETRIES:
+            time.sleep(OLLAMA_RETRY_DELAY * attempt)
+
+    raise RuntimeError(f"Ollama failed after {OLLAMA_RETRIES} attempts: {last_error}")
+
+
+def build_scan_fallback(scan_ctx: Dict[str, Any], reason: str) -> Dict[str, Any]:
+    scan = scan_ctx.get("scan", {})
+    metrics = scan_ctx.get("metrics", {})
+    sev = scan_ctx.get("severity_breakdown", {}) or {}
+    top_hosts = scan_ctx.get("top_risky_hosts", []) or []
+    top_cves = scan_ctx.get("top_cves", []) or []
+
+    total_hosts = int(scan.get("total_hosts") or 0)
+    total_vulns = int(scan.get("total_vulns") or 0)
+    critical_hosts = int(metrics.get("hosts_with_critical_exposure") or 0)
+    vuln_hosts_pct = float(metrics.get("hosts_with_vulns_pct") or 0)
+
+    risk_level = "LOW"
+    if critical_hosts > 0 or float(sev.get("CRITICAL", 0)) > 0:
+        risk_level = "CRITICAL"
+    elif float(sev.get("HIGH", 0)) > 0 or vuln_hosts_pct >= 40:
+        risk_level = "HIGH"
+    elif float(sev.get("MEDIUM", 0)) > 0 or vuln_hosts_pct >= 20:
+        risk_level = "MEDIUM"
+
+    top_host_text = ", ".join([str(h.get("ip")) for h in top_hosts[:3] if h.get("ip")]) or "n/a"
+    top_cve_text = ", ".join([str(v.get("cve")) for v in top_cves[:3] if v.get("cve")]) or "n/a"
+
+    summary = (
+        f"Fallback AI brief for scan #{scan.get('id')}: {total_hosts} hosts, {total_vulns} vulnerabilities, "
+        f"{critical_hosts} hosts with critical exposure. Top risky hosts: {top_host_text}."
+    )
+    executive_summary = (
+        f"Current exposure indicates a {risk_level} posture based on observed vulnerability density and critical host count. "
+        f"Priority should focus on high-impact assets and severe CVEs while model generation is temporarily degraded."
+    )
+    technical_summary = (
+        f"Severity breakdown: CRITICAL={int(sev.get('CRITICAL', 0))}, HIGH={int(sev.get('HIGH', 0))}, "
+        f"MEDIUM={int(sev.get('MEDIUM', 0))}, LOW={int(sev.get('LOW', 0))}, UNKNOWN={int(sev.get('UNKNOWN', 0))}. "
+        f"Top CVEs: {top_cve_text}."
+    )
+
+    recs = [
+        "Prioritize remediation for CRITICAL and HIGH findings on internet-exposed hosts.",
+        "Validate patch status on top risky hosts and re-run targeted scans.",
+        "Review attack-surface services and reduce unnecessary exposed ports.",
+    ]
+    gaps = [f"LLM generation degraded: {str(reason)[:220]}"]
+
+    return {
+        "risk_level": risk_level,
+        "confidence": 0.55,
+        "summary": summary,
+        "executive_summary": executive_summary,
+        "technical_summary": technical_summary,
+        "recommendations": recs,
+        "top_risks": [
+            f"Critical exposure hosts: {critical_hosts}",
+            f"Vulnerable host ratio: {vuln_hosts_pct:.1f}%",
+            f"Top CVE sample: {top_cve_text}",
+        ],
+        "top_priorities": [
+            {"type": "host", "target": top_host_text, "priority": "P1", "reason": "Highest observed exposure concentration"},
+            {"type": "cve", "target": top_cve_text, "priority": "P1", "reason": "Most severe CVE cluster in scan"},
+        ],
+        "data_gaps": gaps,
+    }
+
+
+def compact_scan_context(scan_ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep only high-signal fields to avoid oversized prompts on large scans."""
+    return {
+        "scan": scan_ctx.get("scan", {}),
+        "metrics": scan_ctx.get("metrics", {}),
+        "severity_breakdown": scan_ctx.get("severity_breakdown", {}),
+        "top_risky_hosts": (scan_ctx.get("top_risky_hosts", []) or [])[:8],
+        "top_cves": (scan_ctx.get("top_cves", []) or [])[:10],
+        "top_services": (scan_ctx.get("top_services", []) or [])[:10],
+        "top_orgs": (scan_ctx.get("top_orgs", []) or [])[:8],
+        "delta_summary": scan_ctx.get("delta_summary", {}),
+    }
 
 
 def wait_for_ollama():
@@ -827,9 +935,10 @@ def get_scan_context(conn: sqlite3.Connection, scan_id: int) -> Dict[str, Any]:
     """, (scan_id, MAX_SCAN_TOP_CVES)).fetchall()
 
     service_rows = conn.execute("""
-        SELECT COALESCE(NULLIF(service,''), NULLIF(product,''), 'unknown') AS svc, COUNT(*)
-        FROM ports
-        WHERE scan_id = ?
+        SELECT COALESCE(NULLIF(p.service,''), NULLIF(p.product,''), 'unknown') AS svc, COUNT(*)
+        FROM ports p
+        JOIN hosts h ON h.id = p.host_id
+        WHERE h.scan_id = ?
         GROUP BY svc
         ORDER BY COUNT(*) DESC
         LIMIT ?
@@ -837,9 +946,10 @@ def get_scan_context(conn: sqlite3.Connection, scan_id: int) -> Dict[str, Any]:
 
     sensitive_open = conn.execute("""
         SELECT COUNT(*)
-        FROM ports
-        WHERE scan_id = ?
-          AND port IN (21,22,23,25,111,135,139,445,1433,1521,2049,2375,3306,3389,5432,5601,5900,5985,5986,6379,6443,8080,8443,9090,9200,11211,27017)
+        FROM ports p
+        JOIN hosts h ON h.id = p.host_id
+        WHERE h.scan_id = ?
+          AND p.port IN (21,22,23,25,111,135,139,445,1433,1521,2049,2375,3306,3389,5432,5601,5900,5985,5986,6379,6443,8080,8443,9090,9200,11211,27017)
     """, (scan_id,)).fetchone()[0]
 
     hosts_with_vulns = conn.execute("""
@@ -933,18 +1043,20 @@ def compute_scan_delta(conn: sqlite3.Connection, previous_scan_id: int, latest_s
     prev_cves = {
         (r[0], r[1])
         for r in conn.execute("""
-            SELECT cve, ip
-            FROM vulnerabilities
-            WHERE scan_id = ?
+            SELECT v.cve, h.ip
+            FROM vulnerabilities v
+            JOIN hosts h ON h.id = v.host_id
+            WHERE v.scan_id = ?
         """, (previous_scan_id,)).fetchall()
     }
 
     latest_cves = {
         (r[0], r[1])
         for r in conn.execute("""
-            SELECT cve, ip
-            FROM vulnerabilities
-            WHERE scan_id = ?
+            SELECT v.cve, h.ip
+            FROM vulnerabilities v
+            JOIN hosts h ON h.id = v.host_id
+            WHERE v.scan_id = ?
         """, (latest_scan_id,)).fetchall()
     }
 
@@ -1007,30 +1119,34 @@ def get_diff_context(conn: sqlite3.Connection, previous_scan_id: int, latest_sca
     """, (previous_scan_id, latest_scan_id)).fetchall()
 
     new_cves_rows = conn.execute("""
-        SELECT v.cve, v.ip, v.cvss, v.severity
+        SELECT v.cve, h.ip, v.cvss, v.severity
         FROM vulnerabilities v
+        JOIN hosts h ON h.id = v.host_id
         WHERE v.scan_id = ?
           AND NOT EXISTS (
             SELECT 1
             FROM vulnerabilities p
+            JOIN hosts hp ON hp.id = p.host_id
             WHERE p.scan_id = ?
               AND p.cve = v.cve
-              AND p.ip = v.ip
+              AND hp.ip = h.ip
           )
         ORDER BY COALESCE(v.cvss, 0) DESC, v.cve ASC
         LIMIT 25
     """, (latest_scan_id, previous_scan_id)).fetchall()
 
     resolved_cves_rows = conn.execute("""
-        SELECT v.cve, v.ip, v.cvss, v.severity
+        SELECT v.cve, h.ip, v.cvss, v.severity
         FROM vulnerabilities v
+        JOIN hosts h ON h.id = v.host_id
         WHERE v.scan_id = ?
           AND NOT EXISTS (
             SELECT 1
             FROM vulnerabilities p
+            JOIN hosts hp ON hp.id = p.host_id
             WHERE p.scan_id = ?
               AND p.cve = v.cve
-              AND p.ip = v.ip
+              AND hp.ip = h.ip
           )
         ORDER BY COALESCE(v.cvss, 0) DESC, v.cve ASC
         LIMIT 25
@@ -1313,7 +1429,7 @@ def process_host(conn: sqlite3.Connection, scan_id: int, host_id: int):
     prompt = HOST_PROMPT.format(data=data_str)
 
     try:
-        raw, duration_ms = call_ollama(prompt)
+        raw, duration_ms = call_ollama_resilient(prompt)
         parsed = extract_json_object(raw)
         result = normalize_host_result(parsed, ctx)
         save_host_analysis(conn, scan_id, host_id, result, raw, prompt, duration_ms, status="ok")
@@ -1328,20 +1444,30 @@ def process_host(conn: sqlite3.Connection, scan_id: int, host_id: int):
 
 
 def process_scan_summary(conn: sqlite3.Connection, scan_id: int):
-    scan_ctx = get_scan_context(conn, scan_id)
-    data_str = compact_json(scan_ctx)
-    prompt = SCAN_PROMPT.format(data=data_str)
-
+    prompt = ""
+    scan_ctx: Dict[str, Any] = {}
     try:
-        raw, duration_ms = call_ollama(prompt)
+        scan_ctx = get_scan_context(conn, scan_id)
+        data_str = compact_json(scan_ctx)
+        if len(data_str) > MAX_SCAN_CONTEXT_CHARS:
+            lean_ctx = compact_scan_context(scan_ctx)
+            data_str = compact_json(lean_ctx)
+        prompt = SCAN_PROMPT.format(data=data_str)
+        raw, duration_ms = call_ollama_resilient(prompt)
         parsed = extract_json_object(raw)
         result = normalize_scan_result(parsed)
+        if not result.get("summary"):
+            # If model returns malformed/empty payload, publish a deterministic fallback brief.
+            result = normalize_scan_result(build_scan_fallback(scan_ctx, "empty model response"))
+            save_scan_analysis(conn, scan_id, result, raw, prompt, duration_ms, status="degraded")
+            print(f"  -> Scan summary saved in degraded mode (risk={result.get('risk_level')})")
+            return
         save_scan_analysis(conn, scan_id, result, raw, prompt, duration_ms, status="ok")
         print(f"  -> Scan summary saved (risk={result.get('risk_level')}, confidence={result.get('confidence')})")
     except Exception as e:
         print(f"  [ERROR] scan summary: {e}")
-        fallback = normalize_scan_result({})
-        save_scan_analysis(conn, scan_id, fallback, str(e), prompt, 0, status="error")
+        fallback = normalize_scan_result(build_scan_fallback(scan_ctx, str(e)))
+        save_scan_analysis(conn, scan_id, fallback, str(e), prompt, 0, status="degraded")
 
 
 def process_diff_summary(conn: sqlite3.Connection, latest_scan_id: int):
@@ -1361,15 +1487,48 @@ def process_diff_summary(conn: sqlite3.Connection, latest_scan_id: int):
     prompt = DIFF_PROMPT.format(data=data_str)
 
     try:
-        raw, duration_ms = call_ollama(prompt)
+        raw, duration_ms = call_ollama_resilient(prompt)
         parsed = extract_json_object(raw)
         result = normalize_diff_result(parsed)
+        if not result.get("summary"):
+            result = normalize_diff_result({
+                "risk_trend": diff_ctx.get("delta_summary", {}).get("overall_trend", "STABLE"),
+                "confidence": 0.6,
+                "summary": "Fallback diff brief: model output was empty; using deterministic scan delta.",
+                "notable_changes": [
+                    f"new_hosts={diff_ctx.get('delta_summary', {}).get('new_hosts_count', 0)}",
+                    f"new_cves={diff_ctx.get('delta_summary', {}).get('new_cves_count', 0)}",
+                    f"resolved_cves={diff_ctx.get('delta_summary', {}).get('resolved_cves_count', 0)}",
+                ],
+                "priority_actions": [
+                    "Review newly introduced hosts and critical CVEs from latest scan.",
+                    "Validate resolved findings were effectively remediated.",
+                ],
+                "top_regressions": [],
+                "top_improvements": [],
+            })
+            save_diff_analysis(conn, latest_scan_id, previous_scan_id, result, raw, prompt, duration_ms, status="degraded")
+            print(f"  -> Diff summary saved in degraded mode (trend={result.get('risk_trend')})")
+            return
         save_diff_analysis(conn, latest_scan_id, previous_scan_id, result, raw, prompt, duration_ms, status="ok")
         print(f"  -> Diff summary saved (trend={result.get('risk_trend')})")
     except Exception as e:
         print(f"  [ERROR] diff summary: {e}")
-        fallback = normalize_diff_result({})
-        save_diff_analysis(conn, latest_scan_id, previous_scan_id, fallback, str(e), prompt, 0, status="error")
+        fallback = normalize_diff_result({
+            "risk_trend": diff_ctx.get("delta_summary", {}).get("overall_trend", "STABLE"),
+            "confidence": 0.55,
+            "summary": f"Fallback diff brief generated after model failure: {str(e)[:180]}",
+            "notable_changes": [
+                f"new_hosts={diff_ctx.get('delta_summary', {}).get('new_hosts_count', 0)}",
+                f"gone_hosts={diff_ctx.get('delta_summary', {}).get('gone_hosts_count', 0)}",
+                f"new_cves={diff_ctx.get('delta_summary', {}).get('new_cves_count', 0)}",
+                f"resolved_cves={diff_ctx.get('delta_summary', {}).get('resolved_cves_count', 0)}",
+            ],
+            "priority_actions": ["Investigate regressions and prioritize newly introduced critical findings."],
+            "top_regressions": [],
+            "top_improvements": [],
+        })
+        save_diff_analysis(conn, latest_scan_id, previous_scan_id, fallback, str(e), prompt, 0, status="degraded")
 
 
 def process_once():

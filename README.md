@@ -8,6 +8,12 @@
   <a href="https://github.com/czantoine/smap-ai-recon-center/issues">
     <img alt="Issues" src="https://img.shields.io/github/issues/czantoine/smap-ai-recon-center">
   </a>
+  <a href="https://hub.docker.com/r/czantoine/smap-ai-analyzer">
+    <img alt="AI Analyzer Image Downloads" src="https://img.shields.io/docker/pulls/czantoine/smap-ai-analyzer?label=AI%20Analyzer%20Downloads">
+  </a>
+  <a href="https://hub.docker.com/r/czantoine/smap-grafana">
+    <img alt="Dashboard Image Downloads" src="https://img.shields.io/docker/pulls/czantoine/smap-grafana?label=Dashboard%20Downloads">
+  </a>
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/czantoine/smap-ai-recon-center">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white">
@@ -27,6 +33,17 @@
 <p align="center">
   <a href="https://grafana.com/dashboards/24085">
     <img src="https://grafana-dashboard-badge.netlify.app/.netlify/functions/api/badge?id_dashboard=24085&logo=true" alt="Grafana Dashboard Badge">
+  </a>
+</p>
+
+<p align="center">
+  <b>Enjoying this project?</b><br>
+  If it saves you time or helps your recon workflow, you can support ongoing updates by buying me a coffee.
+</p>
+
+<p align="center">
+  <a href="https://ko-fi.com/V7V22V693">
+    <img alt="Buy me a coffee on Ko-fi" src="https://ko-fi.com/img/githubbutton_sm.svg">
   </a>
 </p>
 
@@ -254,6 +271,8 @@ The Grafana dashboard includes sections for:
 | AI vs STATIC RISK | Comparison between importer risk classification and AI interpretation |
 | AI HOST THREAT INDEX | Ranked table of hosts with AI risk level, score, summary, and recommended actions |
 | AI ASSESSMENT HISTORY | Historical table of AI scan summaries, model used, risk level, and recommendations |
+
+![grafana_dashboard_smap](docs/images/smap-ai.png)
 
 ### ⟩⟩⟩ THREAT MATRIX
 > Vulnerability analysis and risk prioritization.

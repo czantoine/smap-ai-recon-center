@@ -147,6 +147,60 @@ def ensure_schema(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_tech_name     ON technologies(name);
         CREATE INDEX IF NOT EXISTS idx_tags_host     ON host_tags(host_id);
         CREATE INDEX IF NOT EXISTS idx_tags_tag      ON host_tags(tag);
+
+        CREATE TABLE IF NOT EXISTS teams (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL UNIQUE,
+            slug        TEXT UNIQUE,
+            description TEXT,
+            color       TEXT,
+            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS assets (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_key     TEXT UNIQUE,
+            ip            TEXT,
+            hostname      TEXT,
+            display_name  TEXT,
+            asset_type    TEXT DEFAULT 'host',
+            team_id       INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+            environment   TEXT,
+            criticality   TEXT,
+            status        TEXT DEFAULT 'active',
+            source        TEXT,
+            notes         TEXT,
+            first_seen    TEXT,
+            last_seen     TEXT,
+            last_scan_id  INTEGER,
+            created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS asset_tags (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id  INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            tag       TEXT NOT NULL,
+            source    TEXT DEFAULT 'manual',
+            UNIQUE(asset_id, tag)
+        );
+
+        CREATE TABLE IF NOT EXISTS asset_notes (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id   INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            note       TEXT NOT NULL,
+            author     TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_assets_ip        ON assets(ip);
+        CREATE INDEX IF NOT EXISTS idx_assets_hostname  ON assets(hostname);
+        CREATE INDEX IF NOT EXISTS idx_assets_team      ON assets(team_id);
+        CREATE INDEX IF NOT EXISTS idx_assets_status    ON assets(status);
+        CREATE INDEX IF NOT EXISTS idx_tags_asset       ON asset_tags(asset_id);
+        CREATE INDEX IF NOT EXISTS idx_tags_tag         ON asset_tags(tag);
+        CREATE INDEX IF NOT EXISTS idx_asset_notes_asset ON asset_notes(asset_id);
+
     """)
     conn.commit()
     _migrate_columns(conn)
@@ -926,6 +980,99 @@ def _insert_record(conn, scan_id, rec, seen):
 
 
 # ---------------------------------------------------------------------------
+# IP Geolocation enrichment (ip-api.com/batch, free, no key)
+# ---------------------------------------------------------------------------
+def _geo_enrich_hosts(conn: sqlite3.Connection, scan_id: int) -> int:
+    """Enrich hosts missing geo data via ip-api.com/batch (free, max 100/req)."""
+    import urllib.request
+    import time
+
+    rows = conn.execute("""
+        SELECT id, ip FROM hosts
+        WHERE scan_id = ?
+          AND (country_code IS NULL OR TRIM(COALESCE(country_code,'')) = '')
+          AND ip IS NOT NULL
+          AND TRIM(ip) != ''
+          AND ip NOT LIKE '%/%'
+    """, (scan_id,)).fetchall()
+
+    if not rows:
+        return 0
+
+    print(f"  [geo] enriching {len(rows)} hosts without geo data...")
+    enriched = 0
+    batch_size = 100
+
+    for i in range(0, len(rows), batch_size):
+        batch = rows[i:i + batch_size]
+        ips = [row[1] for row in batch]
+        id_map = {row[1]: row[0] for row in batch}
+
+        try:
+            payload = json.dumps(ips).encode("utf-8")
+            req = urllib.request.Request(
+                "http://ip-api.com/batch?fields=status,country,countryCode,city,lat,lon,org,as,query",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                results = json.loads(resp.read().decode("utf-8"))
+
+            for item in results:
+                if not isinstance(item, dict) or item.get("status") != "success":
+                    continue
+                ip = item.get("query")
+                host_id = id_map.get(ip)
+                if not host_id:
+                    continue
+                lat = item.get("lat")
+                lon = item.get("lon")
+                # Sanity check coords
+                if lat is not None and lon is not None:
+                    try:
+                        lat = float(lat); lon = float(lon)
+                        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                            lat = lon = None
+                    except (TypeError, ValueError):
+                        lat = lon = None
+                conn.execute("""
+                    UPDATE hosts SET
+                        country      = ?,
+                        country_code = ?,
+                        city         = ?,
+                        latitude     = ?,
+                        longitude    = ?,
+                        org          = COALESCE(NULLIF(org,''), ?),
+                        asn          = COALESCE(NULLIF(asn,''), ?)
+                    WHERE id = ?
+                """, (
+                    item.get("country"),
+                    item.get("countryCode"),
+                    item.get("city"),
+                    lat, lon,
+                    item.get("org"),
+                    item.get("as"),
+                    host_id,
+                ))
+                enriched += 1
+
+            conn.commit()
+            print(f"  [geo] batch {i//batch_size + 1}: {enriched} enriched so far")
+
+            # ip-api.com free tier: max 45 req/min, stay safe at 1 req/1.5s
+            if i + batch_size < len(rows):
+                time.sleep(1.5)
+
+        except Exception as e:
+            print(f"  [warn] geo enrichment batch failed: {e}")
+            continue
+
+    print(f"  [geo] enrichment done: {enriched}/{len(rows)} hosts updated")
+    return enriched
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def import_smap(path: str, db_path: str) -> int:
@@ -943,6 +1090,9 @@ def import_smap(path: str, db_path: str) -> int:
     start = _read_start(fp, 500)
     print(f"  [preview] {start[:200]}{'...' if len(start)>200 else ''}")
 
+    conn = sqlite3.connect(db_path)
+    ensure_schema(conn)
+
     has_any = False
     for rec in iter_records(fp):
         has_any = True
@@ -952,10 +1102,18 @@ def import_smap(path: str, db_path: str) -> int:
 
     if not has_any:
         print(f"[!] No parseable records in {fp}")
+        st = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO scans (scan_time, raw_file, total_hosts, total_ports, total_vulns, notes)
+                VALUES (?, ?, 0, 0, 0, ?)
+                """,
+                (st, os.path.abspath(fp), "No parseable host records (possibly 0 hosts up)."),
+            )
+        conn.close()
+        print(f"[+] Created empty scan entry in {db_path}")
         return 0
-
-    conn = sqlite3.connect(db_path)
-    ensure_schema(conn)
 
     st = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     c = conn.cursor()
@@ -991,6 +1149,18 @@ def import_smap(path: str, db_path: str) -> int:
 
     print(f"[+] Imported: {totals['hosts']} hosts, {totals['ports']} ports, "
           f"{totals['vulns']} vulns → {db_path} (scan #{sid})")
+
+    # Geo-enrich hosts that have no country/coords
+    if totals["hosts"] > 0:
+        try:
+            geo_conn = sqlite3.connect(db_path)
+            geo_conn.row_factory = sqlite3.Row
+            geo_enriched = _geo_enrich_hosts(geo_conn, sid)
+            geo_conn.close()
+            if geo_enriched:
+                print(f"[+] Geo-enriched {geo_enriched} hosts")
+        except Exception as e:
+            print(f"  [warn] geo enrichment skipped: {e}")
 
     if totals["hosts"] > 0:
         try:

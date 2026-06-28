@@ -7,9 +7,10 @@ COPY ./grafana-provisioning/datasources/datasource.yml /etc/grafana/provisioning
 
 # Dashboards provisioning
 COPY ./grafana-provisioning/dashboards/dashboards.yml /etc/grafana/provisioning/dashboards/smap.yml
+COPY ./grafana-provisioning/fetch-dashboard.sh /usr/local/bin/fetch-dashboard.sh
 
 RUN mkdir -p /var/lib/grafana/dashboards
+RUN chmod +x /usr/local/bin/fetch-dashboard.sh
 
-RUN curl -L -o /var/lib/grafana/dashboards/smap.json \
-    https://grafana.com/api/dashboards/24085/revisions/2/download && \
-    sed -i 's/\${DS_SQLITE}/SQLite/g' /var/lib/grafana/dashboards/smap.json
+ENTRYPOINT ["/usr/local/bin/fetch-dashboard.sh"]
+CMD ["/run.sh"]

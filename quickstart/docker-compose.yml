@@ -9,9 +9,11 @@ services:
     volumes:
       - smap_db:/app/data
       - ./smap_importer/scans:/app/scans
+      - ./smap_importer/targets.txt:/app/targets.txt
     environment:
       - DB_PATH=/app/data/smap.db
-    command: ["python", "import_smap.py", "/app/scans/smap-output.json", "/app/data/smap.db"]
+    # One-shot importer: container exits after scan/import cycle is complete.
+    # This keeps runtime-summary accurate (Idle when work is done).
     cap_drop:
       - ALL
     deploy:
@@ -34,8 +36,64 @@ services:
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ROLE=Admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_INSTALL_PLUGINS=frser-sqlite-datasource
       - GF_PROVISIONING_DS_SQLITE_NAME=SQLite
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment for NVIDIA GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama_init
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: >
+      sh -c "sleep 8 &&
+             ollama pull phi3:mini &&
+             echo 'Model ready'"
+    restart: "no"
+
+  ai-analyzer:
+    build:
+      context: ./ai-analyzer
+      dockerfile: Dockerfile
+    container_name: ai_analyzer
+    depends_on:
+      - smap-importer
+      - ollama
+    environment:
+      - DB_PATH=/app/data/smap.db
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=phi3:mini
+      - SCAN_INTERVAL=300
+    volumes:
+      - smap_db:/app/data
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
 volumes:
   smap_db: {}
+  ollama_data: {}

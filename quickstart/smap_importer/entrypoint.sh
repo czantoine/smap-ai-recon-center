@@ -36,15 +36,18 @@ fi
 # ── Targets ───────────────────────────────────────────────────
 if [ ! -f "$TARGETS_FILE" ] || [ ! -s "$TARGETS_FILE" ]; then
   echo "[entrypoint] No targets file or empty."
-  exec "$@"
+  if [ "$#" -gt 0 ]; then
+    exec "$@"
+  fi
+  exit 0
 fi
 
 NTARGETS=$(wc -l < "$TARGETS_FILE" | tr -d ' ')
 echo "[entrypoint] $NTARGETS targets in $TARGETS_FILE"
 
 # ── Scan: try JSON ────────────────────────────────────────────
-echo "[entrypoint] Running: smap -iL $TARGETS_FILE -oJ $JSON_FILE"
-smap -iL "$TARGETS_FILE" -oJ "$JSON_FILE" 2>"$STDERR_LOG"
+echo "[entrypoint] Running: smap -Pn -iL $TARGETS_FILE -oJ $JSON_FILE"
+smap -Pn -iL "$TARGETS_FILE" -oJ "$JSON_FILE" 2>"$STDERR_LOG"
 SCAN_RC=$?
 echo "[entrypoint] smap exit: $SCAN_RC"
 
@@ -67,7 +70,7 @@ fi
 # ── Fallback: XML ─────────────────────────────────────────────
 if [ -z "$SCAN_FILE" ]; then
   echo "[entrypoint] Falling back to XML..."
-  smap -iL "$TARGETS_FILE" -oX "$XML_FILE" 2>>"$STDERR_LOG"
+  smap -Pn -iL "$TARGETS_FILE" -oX "$XML_FILE" 2>>"$STDERR_LOG"
   if [ -f "$XML_FILE" ]; then
     SIZE=$(wc -c < "$XML_FILE" | tr -d ' ')
     echo "[entrypoint] XML: $SIZE bytes"
@@ -115,4 +118,7 @@ print('[entrypoint] Empty DB created with schema')
 fi
 
 echo "[entrypoint] === DONE ==="
-exec "$@"
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+exit 0

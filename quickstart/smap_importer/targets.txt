@@ -1,105 +1,67 @@
-203.0.113.10
-72.14.201.54
+# ============================================================
+# DEMO TARGETS — security research & intentionally exposed hosts
+# All targets below are official public test/demo endpoints or
+# well-known internet infrastructure.
+# Do NOT scan targets you do not own or have written permission to test.
+# ============================================================
+
+# --- Official scan-me targets (explicitly open for testing) ---
+scanme.nmap.org
+45.33.32.156
+
+# --- Deliberately vulnerable web apps (vendor-hosted demos) ---
+testphp.vulnweb.com
+testaspnet.vulnweb.com
+testasp.vulnweb.com
+testhtml5.vulnweb.com
+demo.testfire.net
+zero.webappsecurity.com
+
+# --- Public DNS resolvers (multi-country, well-known) ---
+1.1.1.1
 8.8.8.8
 8.8.4.4
-1.1.1.1
-1.0.0.1
 9.9.9.9
 149.112.112.112
+208.67.222.222
+208.67.220.220
+77.88.8.8
+94.140.14.14
 
-scanme.nmap.org
-google.com
-apple.com
-openwall.com
-github.com
-shodan.com
-sploitus.com
-seclists.org
-npcap.com
-insecure.org
+# --- CDN edges (geo-distributed, worldwide PoPs) ---
+1.0.0.1
+104.16.0.0
+104.21.0.0
+162.159.0.0
+
+# --- SSL/TLS test targets (certificate exposure research) ---
+badssl.com
+expired.badssl.com
+self-signed.badssl.com
+wrong.host.badssl.com
+untrusted-root.badssl.com
+revoked.badssl.com
+rc4.badssl.com
+3des.badssl.com
+null.badssl.com
+
+# --- HTTP inspection & fingerprinting (intentionally public) ---
+httpbin.org
+portquiz.net
+ifconfig.io
+icanhazip.com
 ipinfo.io
-aws.com
-amazon.com
-azure.com
-formula1.com
-grafana.com
-x.com
-cloudflare.com
-mozilla.org
-microsoft.com
-facebook.com
-twitter.com
-linkedin.com
-reddit.com
-youtube.com
-example.com
-example.org
-example.net
-iana.org
-ietf.org
-w3.org
-stackoverflow.com
-gitlab.com
-bitbucket.org
-docker.com
-kubernetes.io
-linuxfoundation.org
-ubuntu.com
-debian.org
-centos.org
-fedora.org
-archlinux.org
-opensuse.org
-raspberrypi.org
-raspbian.org
-nodejs.org
-python.org
-golang.org
-rust-lang.org
-php.net
-mysql.com
-postgresql.org
-mongodb.com
-redis.io
-nginx.org
-apache.org
-wordpress.org
-joomla.org
-drupal.org
-magento.com
-shopify.com
-stripe.com
-paypal.com
-squareup.com
-adobe.com
-autodesk.com
-intel.com
-amd.com
-nvidia.com
-oracle.com
-ibm.com
-sap.com
-tesla.com
-spacex.com
-nasa.gov
-noaa.gov
-weather.gov
-fema.gov
-cdc.gov
-who.int
-un.org
-europa.eu
-bbc.co.uk
-cnn.com
-nytimes.com
-forbes.com
-bloomberg.com
-techcrunch.com
-wired.com
-ars-technica.com
-theverge.com
-engadget.com
-mashable.com
-ycombinator.com
-redditmedia.com
-imgur.com
+api.ipify.org
+checkip.amazonaws.com
+internet.nl
+
+# --- Public NTP servers ---
+pool.ntp.org
+ntp.ubuntu.com
+
+# --- Multi-region cloud endpoints (geo coverage) ---
+ec2.us-east-1.amazonaws.com
+ec2.eu-west-1.amazonaws.com
+ec2.ap-southeast-1.amazonaws.com
+ec2.sa-east-1.amazonaws.com
+ec2.ap-northeast-1.amazonaws.com
