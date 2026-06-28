@@ -11,11 +11,7 @@
   <a href="https://hub.docker.com/r/czantoine/smap-ai-analyzer">
     <img alt="AI Analyzer Image Downloads" src="https://img.shields.io/docker/pulls/czantoine/smap-ai-analyzer?label=AI%20Analyzer%20Downloads">
   </a>
-  <a href="https://hub.docker.com/r/czantoine/smap-grafana">
-    <img alt="Dashboard Image Downloads" src="https://img.shields.io/docker/pulls/czantoine/smap-grafana?label=Dashboard%20Downloads">
-  </a>
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/czantoine/smap-ai-recon-center">
-  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-Local%20LLM-111111">
   <img alt="AI" src="https://img.shields.io/badge/AI-Assisted%20Threat%20Analysis-8A2BE2">
